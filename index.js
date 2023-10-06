@@ -2,10 +2,14 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import readline from "readline";
+import { cwd } from "process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const inputFilePath = path.join(__dirname, "./nodes.jsonl");
+const [,, inputFileRel, outputDirRel] = process.argv;
+const inputFilePath = path.resolve(cwd(), inputFileRel)
+const outputDirPath = path.resolve(cwd(), outputDirRel)
+
 const inputSize = fs.statSync(inputFilePath).size
 let bytesReadSoFar = 0;
 const inputFileStream = fs.createReadStream(inputFilePath);
@@ -14,7 +18,7 @@ const rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
-const errorFilePath = path.join(__dirname, '/out/' ,"error.txt");
+const errorFilePath = path.join(outputDirPath, "error.txt");
 if(fs.existsSync(errorFilePath)) fs.unlinkSync(errorFilePath);
 const errorLog = fs.createWriteStream(errorFilePath, { flags: 'a+' });
 
