@@ -18,6 +18,7 @@ const rl = readline.createInterface({
   crlfDelay: Infinity,
 });
 
+fs.mkdirSync(outputDirPath, { recursive: true });
 const errorFilePath = path.join(outputDirPath, "error.txt");
 if(fs.existsSync(errorFilePath)) fs.unlinkSync(errorFilePath);
 const errorLog = fs.createWriteStream(errorFilePath, { flags: 'a+' });
