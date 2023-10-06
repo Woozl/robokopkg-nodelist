@@ -1,5 +1,5 @@
 import fs from "fs";
-import path from "path";
+import path, { parse } from "path";
 import readline from "readline";
 import fetch from 'node-fetch';
 import { cwd } from "process";
@@ -29,6 +29,17 @@ const fsMap = new Map();
 const sleep = async (delay) =>
   new Promise((res) => setTimeout(() => res, delay));
 
+const reverseLookup = async (nodes) => await fetch(`${NAME_RESOLVER}/reverse_lookup`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      curies: nodes.map(({ id }) => id)
+    })
+  });
+
 const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
   const t0 = performance.now();
   
@@ -37,19 +48,17 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
   
   // request node synonyms from nameres for this batch
   let synonymsList;
+  let res;
   try {
-    synonymsList = await fetch(`${NAME_RESOLVER}/reverse_lookup`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        curies: parsedNodes.map(({ id }) => id)
-      })
-    }).then(res => res.json());
+    let currentAttempt = 0;
+    do {
+      res = await reverseLookup(parsedNodes)
+      if (currentAttempt > 0) await sleep(1000)
+      currentAttempt += 1;
+    } while(!res.ok && currentAttempt < 10);
+    synonymsList = await res.json();
   } catch (e) {
-    errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${e}\n\n\n`);
+    errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${e}\n${await res.text()}\n\n\n`);
     return;
   }
   
