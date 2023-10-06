@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
+import fetch from 'node-fetch';
 import { cwd } from "process";
 
 const BATCH_SIZE = process.env.BATCH_SIZE ?? 1000;
