@@ -36,16 +36,22 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
   const parsedNodes = nodes.map(node => JSON.parse(node));
   
   // request node synonyms from nameres for this batch
-  const synonymsList = await fetch(`${NAME_RESOLVER}/reverse_lookup`, {
-    method: 'POST',
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      curies: parsedNodes.map(({ id }) => id)
-    })
-  }).then(res => res.json());
+  let synonymsList;
+  try {
+    synonymsList = await fetch(`${NAME_RESOLVER}/reverse_lookup`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        curies: parsedNodes.map(({ id }) => id)
+      })
+    }).then(res => res.json());
+  } catch (e) {
+    errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${e}\n\n\n`);
+    return;
+  }
   
   nodes.forEach((node) => {
     try {
