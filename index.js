@@ -58,7 +58,7 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
     } while(!res.ok && currentAttempt < 10);
     synonymsList = await res.json();
   } catch (e) {
-    errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${e}\n${await res.text()}\n\n\n`);
+    errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${e}\n\n\n`);
     return;
   }
   
