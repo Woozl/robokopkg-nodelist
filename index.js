@@ -7,7 +7,7 @@ import { cwd } from "process";
 const BATCH_SIZE = process.env.BATCH_SIZE ?? 1000;
 const NAME_RESOLVER = process.env.NAME_RESOLVER ?? "https://name-resolution-sri-dev.apps.renci.org";
 
-const [, , inputFileRel, outputDirRel] = process.argv;
+const [, , inputFileRel, outputDirRel, startLineNum] = process.argv;
 const inputFilePath = path.resolve(cwd(), inputFileRel);
 const outputDirPath = path.resolve(cwd(), outputDirRel);
 
@@ -81,7 +81,7 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
       await sleep(1000)
     }
   } while (synonymsList === null && currentAttempt < 10);
-  
+
   if (synonymsList === null) {
     await write(errorLog, `Error parsing response for batch starting at line ${batchStartIndex}\n\n\n`);
     return;
@@ -102,7 +102,7 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
       if (categoryFile === undefined) {
         fsMap.set(
           mainCat,
-          fs.createWriteStream(path.join(outputDirPath, `${mainCat}.txt`))
+          fs.createWriteStream(path.join(outputDirPath, `${mainCat}.txt`), { flags: 'a+' })
         );
         categoryFile = fsMap.get(mainCat);
       }
@@ -138,7 +138,8 @@ for await (const node of nodelist) {
   bytesReadSoFar += Buffer.byteLength(node) + 1;
   batch.push(node);
   if (index % BATCH_SIZE === 0 && index !== 0) {
-    await processBatch(batch, index - BATCH_SIZE, bytesReadSoFar);
+    if (startLineNum && index >= parseInt(startLineNum))
+      await processBatch(batch, index - BATCH_SIZE, bytesReadSoFar);
     batch = [];
   }
   index += 1;

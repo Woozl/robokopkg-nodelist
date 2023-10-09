@@ -1,5 +1,8 @@
 ```
-npm run start <path_to_nodelist> <path_to_output_dir>
+npm run start \
+  <path_to_nodelist> \
+  <path_to_output_dir> \
+  <optional line number to start in nodelist>
 ```
 
 ```
