@@ -26,6 +26,13 @@ const errorLog = fs.createWriteStream(errorFilePath, { flags: "a+" });
 // Map<string, fs.WriteStream>
 const fsMap = new Map();
 
+const getHumanReadableTime = (ms) => {
+  const h = Math.floor(ms / 3_600_000).toString().padStart(2, '0');
+  const m = Math.floor((ms % 3_600_000) / 60_000).toString().padStart(2, '0');
+  const s = Math.floor((ms % 60_000) / 1_000).toString().padStart(2, '0');
+  return `${h}:${m}:${s}`
+}
+
 const sleep = async (delay) =>
   new Promise((res) => setTimeout(() => res, delay));
 
@@ -108,7 +115,7 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
     }
   });
 
-  console.log(`[${((bytesReadSoFar / inputSize) * 100).toFixed(2)}%] [${(performance.now() - t0).toFixed(1)}ms] Finished processing batch of nodes ${batchStartIndex} - ${batchStartIndex + nodes.length}`)
+  console.log(`[${getHumanReadableTime(performance.now() - progStart)}] [${((bytesReadSoFar / inputSize) * 100).toFixed(2)}%] [${(performance.now() - t0).toFixed(1)}ms] Finished processing batch of nodes ${batchStartIndex} - ${batchStartIndex + nodes.length}`)
 };
 
 let t0 = performance.now();
