@@ -138,7 +138,7 @@ for await (const node of nodelist) {
   bytesReadSoFar += Buffer.byteLength(node) + 1;
   batch.push(node);
   if (index % BATCH_SIZE === 0 && index !== 0) {
-    if (startLineNum && index >= parseInt(startLineNum))
+    if (!startLineNum || index >= parseInt(startLineNum))
       await processBatch(batch, index - BATCH_SIZE, bytesReadSoFar);
     batch = [];
   }
