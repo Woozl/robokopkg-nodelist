@@ -1,5 +1,5 @@
 import fs from "fs";
-import path, { parse } from "path";
+import path from "path";
 import readline from "readline";
 import fetch from 'node-fetch';
 import { cwd } from "process";
@@ -25,6 +25,11 @@ const errorLog = fs.createWriteStream(errorFilePath, { flags: "a+" });
 
 // Map<string, fs.WriteStream>
 const fsMap = new Map();
+
+// promisified stream write
+const write = (stream, data) => new Promise((res, rej) => {
+  stream.write(data, 'utf-8', (err) => { err ? rej(err) : res() })
+})
 
 const getHumanReadableTime = (ms) => {
   const h = Math.floor(ms / 3_600_000).toString().padStart(2, '0');
@@ -61,7 +66,7 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
     try {
       text = await reverseLookup(parsedNodes).then(res => res.text());
     } catch (e) {
-      errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${text}\n${e}\n\n\n`);
+      await write(errorLog, `Error on nameres batch fetch starting at line ${batchStartIndex}\n${text}\n${e}\n\n\n`);
       return;
     }
     try {
@@ -72,11 +77,11 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
     }
   } while (synonymsList === null && currentAttempt < 10);
   if (synonymsList === null) {
-    errorLog.write(`Error parsing response for batch starting at line ${batchStartIndex}\n\n\n`);
+    await write(errorLog, `Error parsing response for batch starting at line ${batchStartIndex}\n\n\n`);
     return;
   }
   
-  nodes.forEach((node) => {
+  nodes.forEach(async (node) => {
     try {
       const {
         id,
@@ -109,9 +114,9 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
         ), Infinity),
       };
 
-      categoryFile.write(`${JSON.stringify(outputJson)}\n`);
+      await write(categoryFile, `${JSON.stringify(outputJson)}\n`);
     } catch (e) {
-      errorLog.write(`${node}\n${e}\n\n\n`);
+      await write(errorLog, `${node}\n${e}\n\n\n`);
     }
   });
 
