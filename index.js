@@ -39,7 +39,7 @@ const getHumanReadableTime = (ms) => {
 }
 
 const sleep = async (delay) =>
-  new Promise((res) => setTimeout(() => res, delay));
+  new Promise((res) => setTimeout(() => res(), delay));
 
 const reverseLookup = async (nodes) => await fetch(`${NAME_RESOLVER}/reverse_lookup`, {
     method: 'POST',
@@ -59,16 +59,21 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
   const parsedNodes = nodes.map(node => JSON.parse(node));
   
   // request node synonyms from nameres for this batch
+  // will attempt to fetch 10 times (with 1 sec delay) before writing an error log and moving on 
   let synonymsList = null;
   let currentAttempt = 0;
   do {
     let text;
+    
+    // try to lookup from nameres
     try {
       text = await reverseLookup(parsedNodes).then(res => res.text());
     } catch (e) {
       await write(errorLog, `Error on nameres batch fetch starting at line ${batchStartIndex}\n${text}\n${e}\n\n\n`);
       return;
     }
+
+    // try to get JSON. If it's something else, try again
     try {
       synonymsList = JSON.parse(text)
     } catch (_) {
@@ -76,6 +81,7 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
       await sleep(1000)
     }
   } while (synonymsList === null && currentAttempt < 10);
+  
   if (synonymsList === null) {
     await write(errorLog, `Error parsing response for batch starting at line ${batchStartIndex}\n\n\n`);
     return;
