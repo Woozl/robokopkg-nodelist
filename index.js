@@ -47,19 +47,28 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
   const parsedNodes = nodes.map(node => JSON.parse(node));
   
   // request node synonyms from nameres for this batch
+  // let synonymsList;
+  // let res;
+  // try {
+  //   // let currentAttempt = 0;
+  //   // do {
+  //   //   res = await reverseLookup(parsedNodes)
+  //   //   if (currentAttempt > 0) await sleep(1000)
+  //   //   currentAttempt += 1;
+  //   // } while(!res.ok && currentAttempt < 10);
+  //   // synonymsList = await res.json();
+  // } catch (e) {
+  //   errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${e}\n\n\n`);
+  //   return;
+  // }
+
+  const text = await reverseLookup(parsedNodes).then((res) => res.text())
   let synonymsList;
-  let res;
   try {
-    let currentAttempt = 0;
-    do {
-      res = await reverseLookup(parsedNodes)
-      if (currentAttempt > 0) await sleep(1000)
-      currentAttempt += 1;
-    } while(!res.ok && currentAttempt < 10);
-    synonymsList = await res.json();
-  } catch (e) {
-    errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${e}\n\n\n`);
-    return;
+    synonymsList = JSON.parse(text);
+  }
+  catch (_) {
+    throw new Error(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${text}\n\n\n`)
   }
   
   nodes.forEach((node) => {
