@@ -68,7 +68,8 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
     synonymsList = JSON.parse(text);
   }
   catch (_) {
-    throw new Error(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${text}\n\n\n`)
+    errorLog.write(`Error on nameres batch fetch starting at line ${batchStartIndex}\n${text}\n\n\n`)
+    return;
   }
   
   nodes.forEach((node) => {
