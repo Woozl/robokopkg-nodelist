@@ -129,8 +129,7 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
   console.log(`[${getHumanReadableTime(performance.now() - progStart)}] [${((bytesReadSoFar / inputSize) * 100).toFixed(2)}%] [${(performance.now() - t0).toFixed(1)}ms] Finished processing batch of nodes ${batchStartIndex} - ${batchStartIndex + nodes.length}`)
 };
 
-let t0 = performance.now();
-const progStart = t0;
+const progStart = performance.now();
 let batch = [];
 let index = 0;
 let bytesReadSoFar = 0;
