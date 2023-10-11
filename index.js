@@ -86,8 +86,8 @@ const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFa
   // will attempt to fetch 10 times (with 1 sec delay) before writing an error log and moving on 
   let synonymsList = null;
   let currentAttempt = 0;
+  let text;
   do {
-    let text;
     
     // try to lookup from nameres
     try {
@@ -109,7 +109,7 @@ const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFa
   // the synonym list will be null if it could not be properly fetched
   // in that case, write to log and return so the next line can be processed
   if (synonymsList === null) {
-    await write(errorLog, `Error parsing response for batch starting from lines ${batchStartIndex}-${batchEndIndex}\n\n\n`);
+    await write(errorLog, `Error parsing response for batch starting from lines ${batchStartIndex}-${batchEndIndex}\n${text}\n\n\n`);
     return;
   }
   
