@@ -6,6 +6,7 @@ import { cwd } from "process";
 
 const BATCH_SIZE = process.env.BATCH_SIZE ?? 1000;
 const NAME_RESOLVER = process.env.NAME_RESOLVER ?? "https://name-resolution-sri-dev.apps.renci.org";
+const IGNORE_LIST = ["biolink:SequenceVariant"] // if the node contains any of these categories, skip
 
 // Get three inputs from the command line args:
 // - the input file containing the node list as jsonl
@@ -71,18 +72,15 @@ const reverseLookup = async (nodes) => await fetch(`${NAME_RESOLVER}/reverse_loo
 
 /**
  * this fn performs the logic and lookup on a group of lines from the nodelist file
- * @param {*} nodes an array of strings, where each string is a JSON-parsable object containing
- * the node's `id` (string), `name` (string), and `category` (string[])
- * @param {*} batchStartIndex the index/line number where this batch starts, used for the
+ * @param {{ id: string, name: string, category: string[] }[]} nodes 
+ * @param {number} batchStartIndex the index/line number where this batch starts, used for the
  * human-readable output format and error logs
- * @param {*} bytesReadSoFar number of bytes read from the nodelist file up til this line, used 
+ * @param {number} batchEndIndex the index/line number where this batch ends
+ * @param {number} bytesReadSoFar number of bytes read from the nodelist file up til this line, used 
  * for the percentage complete text
  */
-const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
+const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFar) => {
   const t0 = performance.now();
-  
-  // parse nodes here so we don't have to do it twice
-  const parsedNodes = nodes.map(node => JSON.parse(node));
   
   // request node synonyms from nameres for this batch
   // will attempt to fetch 10 times (with 1 sec delay) before writing an error log and moving on 
@@ -93,9 +91,9 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
     
     // try to lookup from nameres
     try {
-      text = await reverseLookup(parsedNodes).then(res => res.text());
+      text = await reverseLookup(nodes).then(res => res.text());
     } catch (e) {
-      await write(errorLog, `Error on nameres batch fetch starting at line ${batchStartIndex}\n${text}\n${e}\n\n\n`);
+      await write(errorLog, `Error on nameres batch fetch from lines ${batchStartIndex}-${batchEndIndex}\n${text}\n${e}\n\n\n`);
       return;
     }
 
@@ -111,19 +109,18 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
   // the synonym list will be null if it could not be properly fetched
   // in that case, write to log and return so the next line can be processed
   if (synonymsList === null) {
-    await write(errorLog, `Error parsing response for batch starting at line ${batchStartIndex}\n\n\n`);
+    await write(errorLog, `Error parsing response for batch starting from lines ${batchStartIndex}-${batchEndIndex}\n\n\n`);
     return;
   }
   
   // for every node in this batch, rewrite the field names to the nameres-compliant json format
   // and add the synonyms to the name array
-  nodes.forEach(async (node) => {
+  nodes.forEach(async ({
+    id,
+    name,
+    category,
+  }) => {
     try {
-      const {
-        id,
-        name,
-        category,
-      } = JSON.parse(node);
       const synonyms = synonymsList[id];
       if (!Array.isArray(synonyms)) throw new Error(`Node ${node} did not have synonyms`)
 
@@ -169,27 +166,38 @@ const processBatch = async (nodes, batchStartIndex, bytesReadSoFar) => {
 
   // print some human-readable log output:
   // [HH:MM:SS since prog start] [percentage complete] [time the batch took to complete] the line numbers/node range that were completed by this batch
-  console.log(`[${getHumanReadableTime(performance.now() - progStart)}] [${((bytesReadSoFar / inputSize) * 100).toFixed(2)}%] [${(performance.now() - t0).toFixed(1)}ms] Finished processing batch of nodes ${batchStartIndex} - ${batchStartIndex + nodes.length}`)
+  console.log(`[${getHumanReadableTime(performance.now() - progStart)}] [${((bytesReadSoFar / inputSize) * 100).toFixed(2)}%] [${(performance.now() - t0).toFixed(1)}ms] Finished processing batch of nodes ${batchStartIndex} - ${batchEndIndex}`)
 };
 
 const progStart = performance.now();
 let batch = [];
+let batchStartIndex = 0;
 let index = 0;
 let bytesReadSoFar = 0;
 // main loop runs linearly through node list. It collects batches `BATCH_SIZE` long (1000 by default)
-// in the `batch` array, which it then sends to the processBatch fn. It also keeps track of the number
-// of bytes that have been read so far and the line/node number
-for await (const node of nodelist) {
-  bytesReadSoFar += Buffer.byteLength(node) + 1;
-  batch.push(node);
-  if (index % BATCH_SIZE === 0 && index !== 0) {
-    // if the command line arg was set, skip processing until we get to that line number
-    if (!startLineNum || index >= parseInt(startLineNum))
-      await processBatch(batch, index - BATCH_SIZE, bytesReadSoFar);
-    batch = [];
+// in the `batch` array (filtered by the ignore list), which it then sends to the processBatch fn. 
+// It also keeps track of the number of bytes that have been read so far and the line/node number
+for await (const nodeStr of nodelist) {
+  bytesReadSoFar += Buffer.byteLength(nodeStr) + 1;
+  const node = JSON.parse(nodeStr);
+
+  // if this node includes a category on the IGNORE_LIST, skip over it **AND**
+  // if the command line arg was set, skip processing until we get to that line number
+  if(
+    !node.category.some((category) => IGNORE_LIST.includes(category)) &&
+    (!startLineNum || index >= startLineNum)
+  ) {
+    batch.push(node);
+
+    if(batch.length === BATCH_SIZE) {
+      await processBatch(batch, batchStartIndex, index, bytesReadSoFar)
+      batch = [];
+      batchStartIndex = index + 1;
+    }
   }
+
   index += 1;
 }
-await processBatch(batch, index - BATCH_SIZE, bytesReadSoFar); // process remaining
+await processBatch(batch, batchStartIndex, index, bytesReadSoFar); // process remaining
 
 console.log(`Job took ${(performance.now() - progStart / 1000).toFixed(2)} seconds.`)
