@@ -109,7 +109,7 @@ const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFa
   // the synonym list will be null if it could not be properly fetched
   // in that case, write to log and return so the next line can be processed
   if (synonymsList === null) {
-    await write(errorLog, `Error parsing response for batch starting from lines ${batchStartIndex}-${batchEndIndex}\n${JSON.stringify(nodes)}\n${text}\n\n\n`);
+    await write(errorLog, `Error parsing response for batch starting from lines ${batchStartIndex}-${batchEndIndex}\n${text}\n\n\n`);
     return;
   }
   
