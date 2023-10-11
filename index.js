@@ -83,7 +83,7 @@ const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFa
   const t0 = performance.now();
   
   // request node synonyms from nameres for this batch
-  // will attempt to fetch 10 times (with 1 sec delay) before writing an error log and moving on 
+  // will attempt to fetch 10 times (with 0.5 sec delay) before writing an error log and moving on 
   let synonymsList = null;
   let currentAttempt = 0;
   let text;
@@ -94,15 +94,16 @@ const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFa
       text = await reverseLookup(nodes).then(res => res.text());
     } catch (e) {
       await write(errorLog, `Error on nameres batch fetch from lines ${batchStartIndex}-${batchEndIndex}\n${text}\n${e}\n\n\n`);
+      console.error(`Batch from lines ${batchStartIndex}-${batchEndIndex} failed!`)
       return;
     }
 
-    // try to get JSON. If it fails to parse, try again with a 1 sec delay
+    // try to get JSON. If it fails to parse, try again with a 0.5 sec delay
     try {
       synonymsList = JSON.parse(text)
     } catch (_) {
       currentAttempt += 1;
-      await sleep(1000)
+      await sleep(500)
     }
   } while (synonymsList === null && currentAttempt < 10);
 
@@ -110,6 +111,7 @@ const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFa
   // in that case, write to log and return so the next line can be processed
   if (synonymsList === null) {
     await write(errorLog, `Error parsing response for batch starting from lines ${batchStartIndex}-${batchEndIndex}\n${text}\n\n\n`);
+    console.error(`Batch from lines ${batchStartIndex}-${batchEndIndex} failed!`)
     return;
   }
   
@@ -157,10 +159,10 @@ const processBatch = async (nodes, batchStartIndex, batchEndIndex, bytesReadSoFa
       // race conditions
       await write(categoryFile, `${JSON.stringify(outputJson)}\n`);
     } catch (e) {
-      // if anything went wrong, write the raw nodelist line and the error thrown
+      // if anything went wrong, write the node and the error thrown
       // keep in mind the network call to nameres has it's errors handled seperately
       // TODO: make this error handling more fine-tuned
-      await write(errorLog, `${node}\n${e}\n\n\n`);
+      await write(errorLog, `${{ id, name, category }}\n${e}\n\n\n`);
     }
   });
 
